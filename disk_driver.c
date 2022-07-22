@@ -12,7 +12,7 @@
 #include <sys/types.h>  
 #include <sys/mman.h> 
 
-//marco
+
 void DiskDriver_init(DiskDriver* disk, const char* filename, int num_blocks){
    if ((disk->fd = open (filename, O_CREAT |O_RDWR | O_SYNC,0666)) == -1) { 
     perror("error in the opening of file");
@@ -44,7 +44,6 @@ void DiskDriver_init(DiskDriver* disk, const char* filename, int num_blocks){
 }
 
 
-//edoardo
 int DiskDriver_readBlock(DiskDriver* disk, void* dest, int block_num) {
       int n_blocks = disk->header->num_blocks;
       if(block_num<0 || block_num>=n_blocks) {
@@ -67,7 +66,6 @@ int DiskDriver_readBlock(DiskDriver* disk, void* dest, int block_num) {
 
 
 
-//marco
 int DiskDriver_writeBlock(DiskDriver* disk, void* src, int block_num){
    //SI ASSUME CHE SI SCRIVE SU NUOVI BLOCCHI SOLO DOPO AVER CHIAMATO GETFREEBLOCK
    if(block_num==disk->header->first_free_block){ //se scrivo nel first free block cerco il prossimo e sovrascrivo
@@ -93,8 +91,6 @@ int DiskDriver_writeBlock(DiskDriver* disk, void* src, int block_num){
 
 }
 
-
-//edoardo
 int DiskDriver_freeBlock(DiskDriver* disk, int block_num) {
    int n_blocks = disk->header->num_blocks;
    if(block_num<0 || block_num>=n_blocks) {

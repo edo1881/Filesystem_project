@@ -28,40 +28,42 @@ char** ris=NULL;
 int num_cwd_entries=0;
 
 void completion(const char *buf, linenoiseCompletions *lc) {
-    //printf("buf è :%s e lenbuf è:%ld\n",buf,strlen(buf));
-    assert(ris!=NULL && ris[0]!=NULL && "errorr");
-    //printf("il primo è %c",ris[0][0]);
-    //printf("sono in callback");
-    char* copy=(char*)malloc(3);
-    strncpy(copy,buf,2);
-    copy[2]='\0';
-    //printf("copy: %s num: %d\n",copy,num_cwd_entries);
-    //printf("sto prima");
-    //fflush(stdout);
-    if(strcmp(copy,"cd")) {
-        printf("Esco...\n");
-        return;
+    int c,r;
+    c=!strncmp(buf,"cd",2);
+    r=!strncmp(buf,"rm",2);
+    if(strlen(buf)>0 && (c||r)){
+        int len=strlen(buf);
+        char* str=(char*)malloc(len+1);
+        memcpy(str,buf,len);
+        str[len]='\0';
+        strtok(str," ");
+        char* file=strtok(NULL," ");
+       // printf("sono in ");
+        //fflush(stdout);
+    
+    //    fflush(stdout);
+        if(!file) {//printf("Esco...\n");fflush(stdout);
+            return;}
+        //printf("file:%s\n",file);
+        for(int i=0;i<num_cwd_entries;i++) {
+            if(ris[i] && !strncmp(file,ris[i],len-3)){
+                //printf("sto in if e strlen vale:%ld compare between %s and %s",strlen(ris[i]),ris[i],file);
+                //fflush(stdout);
+                len=strlen(ris[i])+4;
+                char* to_add=(char*)malloc(len);
+                c? strcpy(to_add,"cd "): strcpy(to_add,"rm ");
+                strcat(to_add,ris[i]);
+                //to_add[len-1]='\0';
+                //printf("sto per invocare linenoise");
+                //fflush(stdout);
+                linenoiseAddCompletion(lc,to_add);
+                free(to_add);
+                //fprintf(stderr,"fatto linenoiseadd %s\n",to_add);
+                //fflush(stdout);
+            }
+        }
+        free(str);
     }
-    //printf("sto dopo");
-    //fflush(stdout);
-    for(int i=0;i<num_cwd_entries;i++) {
-         if(ris[i] && ris[i][0]==buf[strlen(buf)-1]){
-            //printf("sto in if e strlen vale:%ld",strlen(ris[i]));
-            //fflush(stdout);
-
-            char* to_add=(char*)malloc(20);
-            strcpy(to_add,"cd ");
-            strcat(to_add,ris[i]);
-            //printf("sto per invocare linenoise");
-            //fflush(stdout);
-            linenoiseAddCompletion(lc,to_add);
-            free(to_add);
-            //printf("fatto linenoiseadd");
-            //fflush(stdout);
-         }
-     }
-    //printf("esco dal for");
-    //fflush(stdout);
 }
 
 void ris_add(char* name) {
@@ -86,7 +88,7 @@ void ris_add(char* name) {
 }
 void ris_rm(char* name) {
     char** p=ris;
-    while(*p){
+    while(p && *p){
         if(!strcmp(*p,name)) {
             //printf("HO rimosso %s da ris\n",*p);
             free(*p);
