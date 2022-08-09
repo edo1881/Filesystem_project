@@ -25,7 +25,7 @@ char* cmd[NUMCMD]= {
 };
 
 char** ris=NULL;
-int num_cwd_entries=0;
+int ris_length=10;
 
 void completion(const char *buf, linenoiseCompletions *lc) {
     int c,r;
@@ -45,22 +45,27 @@ void completion(const char *buf, linenoiseCompletions *lc) {
         if(!file) {//printf("Esco...\n");fflush(stdout);
             return;}
         //printf("file:%s\n",file);
-        for(int i=0;i<num_cwd_entries;i++) {
+        for(int i=0;i<ris_length;i++) {
             if(ris[i] && !strncmp(file,ris[i],len-3)){
-                //printf("sto in if e strlen vale:%ld compare between %s and %s",strlen(ris[i]),ris[i],file);
+                //printf("%d",i);
+               //printf("sto in if e strlen vale:%ld compare between %s and %s",strlen(ris[i]),ris[i],file);
                 //fflush(stdout);
-                len=strlen(ris[i])+4;
-                char* to_add=(char*)malloc(len);
+                int len=strlen(ris[i])+4;
+                char* to_add=(char*)calloc(len,sizeof(char));
                 c? strcpy(to_add,"cd "): strcpy(to_add,"rm ");
                 strcat(to_add,ris[i]);
                 //to_add[len-1]='\0';
                 //printf("sto per invocare linenoise");
                 //fflush(stdout);
                 linenoiseAddCompletion(lc,to_add);
+                //fprintf(stderr,"fatto linenoiseadd %s",to_add);
+                //fflush(stderr);
                 free(to_add);
-                //fprintf(stderr,"fatto linenoiseadd %s\n",to_add);
-                //fflush(stdout);
             }
+            /*else {
+                printf("sono fuori %s",ris[i]);
+                fflush(stdout);
+            }*/
         }
         free(str);
     }
@@ -72,30 +77,36 @@ void ris_add(char* name) {
         char** p=ris;
         int i =0;
        // assert(ris && p && "error");
-        while(p && *p) {
+        while(p && i<ris_length) {
+            if(!(*p)) break;
             //printf("%s\n",*p);
             i++;
             p++;
         }
         printf("i:%d\n",i);
-        //if(!p) realloc(ris,
+        if(i==ris_length) {
+            ris=realloc(ris,ris_length*2*sizeof(char*));
+            ris_length*=2;
+        }
         int len=strlen(name);
         ris[i]=(char*)malloc(len+1);
         memcpy(ris[i],name,len);
         ris[i][len]='\0';
-        //printf("Ho aggiunto %s in ris\n",ris[i]);
+        printf("Ho aggiunto %s in ris\n",ris[i]);
     }
 }
 void ris_rm(char* name) {
     char** p=ris;
-    while(p && *p){
-        if(!strcmp(*p,name)) {
-            //printf("HO rimosso %s da ris\n",*p);
+    int i=0;
+    while(p && i<ris_length){
+        if(*p && !strcmp(*p,name)) {
+            printf("Ho rimosso %s da ris\n",*p);
             free(*p);
             memset(p,0,sizeof(char*));
             break;
         }
         p++;
+        i++;
     }
 }
 int main(int argc, char** argv) {
@@ -130,7 +141,6 @@ int main(int argc, char** argv) {
         root->directory=NULL;
         root->dcb=fs->cwd;
         root->f=fs;
-        num_cwd_entries=root->dcb->num_entries;
         fat32_listDir(ris,root);
     }
     /**********************************************************************/
@@ -159,7 +169,6 @@ int main(int argc, char** argv) {
     while(1) {
         //printf("i'm in %s\n",fs->cwd->fcb.name);
         //printf("%s : ",path);
-        num_cwd_entries=fs->cwd->num_entries;
         user_cmd= linenoise(path);
         /*assert(ris&& "ris not allocated");
         for(int i=0;i<root->dcb->num_entries;i++){
@@ -220,9 +229,9 @@ int main(int argc, char** argv) {
                     
                         
                 }
-                else if(!strcmp(ARG,"..") && !strcmp(root->dcb->fcb.name,"/\0")){
+                /*else if(!strcmp(ARG,"..") && !strcmp(root->dcb->fcb.name,"/\0")){
 
-                }
+                }*/
                 else{
                     ret=fat32_changeDir(root,ARG);
                     if(ret==-1) {
@@ -236,6 +245,9 @@ int main(int argc, char** argv) {
                     }
                         
                     }
+                filename_dealloc(ris);
+                ris=filename_alloc();
+                fat32_listDir(ris,root);
                 
             }
             else if (!strcmp(CMD,"mkdir"))

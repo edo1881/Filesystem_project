@@ -229,7 +229,7 @@ int fat32_listDir(char** names, DirectoryHandle* d){
 }
 
 char** filename_alloc() {
-    char**names=(char**)calloc(1,10*sizeof(char*));
+    char**names=(char**)calloc(10,sizeof(char*));
     /*for(int j=0;j<10;j++) {
         names[j]=(char*)malloc(20);
     }*/
@@ -237,7 +237,7 @@ char** filename_alloc() {
 }
 void filename_dealloc(char** names) {
     char** a=names;
-    while(*a && (*a)!=(char*)0xBFFFFFFFF) { 
+    while(*a) { 
         //printf("sono in \n");
         /*if(names && names[i]!=0) {
             printf("sto in if\n");
