@@ -3,10 +3,11 @@
 #include <stdio.h>
 #include <math.h>
 #include <assert.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
-
-
-//edo e marco
 DirectoryHandle* fat32_init(fat32* fs, DiskDriver* disk){
     fs->disk=disk;
     FirstDirectoryBlock* fdb=(FirstDirectoryBlock*)malloc(sizeof(FirstDirectoryBlock));
@@ -185,12 +186,14 @@ int fat32_listDir(char** names, DirectoryHandle* d){
     while(entries_of_first_block){
         if(d->dcb->file_blocks[i]!=-1){
             DiskDriver_readBlock(d->f->disk,buf,d->dcb->file_blocks[i]);
+            names[valid_entries]=(char*)calloc(0,strlen(buf->fcb.name)+2);
+            strncpy(names[valid_entries],buf->fcb.name,strlen(buf->fcb.name));
             if(buf->fcb.is_dir) {
-                mask=(1<<i);
-                color_bitmap|=mask;
+                names[valid_entries][strlen(buf->fcb.name)+1]='1';
+                /*mask=(1<<i);
+                color_bitmap|=mask;*/
             }
-            names[valid_entries]=(char*)calloc(0,strlen(buf->fcb.name)+1);
-            strcpy(names[valid_entries],buf->fcb.name);
+            //names[valid_entries][-1]='\0';
             valid_entries++;
         }
         entries_of_first_block--;
@@ -237,7 +240,7 @@ char** filename_alloc() {
 }
 void filename_dealloc(char** names) {
     char** a=names;
-    while(*a) { 
+    while(a && *a) { 
         //printf("sono in \n");
         /*if(names && names[i]!=0) {
             printf("sto in if\n");
@@ -247,9 +250,9 @@ void filename_dealloc(char** names) {
         else break;*/
         /*assert(*a&& "error *a");
         printf("a:%p,%s\n",&(*a),*a);*/
-        //printf("sto per freeare: %s\n",*a);
+        printf("sto per freeare: %s len:%ld\n",*a,strlen(*a));
         free(*a);
-        //printf("freeato\n");
+        printf("freeato\n");
         a++;
     }
     //printf("faro free finale\n");
@@ -312,8 +315,13 @@ FileHandle* fat32_openFile(DirectoryHandle* d, const char* filename) {
         succ=fat[succ];
         free(buf);
     }
-    printf("File %s non presente nella cwd\n",filename);
-    return NULL;
+    printf("File %s non presente nella cwd procedo a crearlo\n",filename);
+    fh=fat32_createFile(d,filename);
+    if(fh) {
+            List_insert(head,NULL,(ListItem*)fh);
+            ris_add(filename);
+            }
+    return fh;
 }
 
 
@@ -727,6 +735,7 @@ int fat32_seek(FileHandle* f, int pos){
         f->pos_in_file=pos;
         return pos;
     }
+    printf("Invalid position\n");
     return -1;
 }
 
@@ -800,7 +809,66 @@ int fat32_changeDir(DirectoryHandle* d, char* dirname){
     }
     return -1;
 }
-
+void copy_fs_tomyfs(char* dest,char* src,DirectoryHandle* d) {
+    int fd_src;
+    FileHandle* fh;
+    //open and read src file
+    if(d==NULL || (fd_src=open(src,O_RDONLY))==-1) {
+        printf("Error opening src file %s\n",strerror(errno));
+        return;
+    }
+    int size,res;
+    char* buffer;
+    struct stat* info=(struct stat*)malloc(sizeof(struct stat));
+    fstat(fd_src,info);
+    size=info->st_size;
+    buffer=(char*)malloc(size);
+    res=read(fd_src,buffer,size);
+    if(res==-1) {
+        printf("Error reading src_fs file %s\n",strerror(errno));
+        return;
+    }
+    //open and write dest file
+    fh=fat32_openFile(d,dest);
+    res=fat32_write(fh,buffer,size);
+    if(res==-1) {
+         printf("Error writing  dest_myfs file\n");
+        return;
+    }
+    fat32_seek(fh,0);
+}
+void copy_myfs_tofs(char* dest,char* src,DirectoryHandle* d) {
+    int fd_dest;
+    FileHandle* fh;
+    //open and read src file
+    if(d==NULL || (fh=fat32_openFile(d,src))==NULL) {
+        printf("Error opening src_myfs file \n");
+        return;
+    }
+    int size,res;
+    char* buffer;
+    size=fh->ffb->fcb.size;
+    buffer=(char*)malloc(size);
+    res=fat32_read(fh,buffer,size);
+    if(res==-1) {
+        printf("Error reading src_myfs file\n");
+        return;
+    }
+    //open and write dest file
+    fd_dest=open(dest,O_CREAT|O_WRONLY,0666);
+    struct stat* info=(struct stat*)malloc(sizeof(struct stat));
+    fstat(fd_dest,info);
+    int dest_size=info->st_size;
+    if(fd_dest==-1 || (fd_dest!=-1 && dest_size>0)) {
+        printf("Error opening dest_fs file %s\n",strerror(errno));
+        return;
+    }
+    res = write(fd_dest,buffer,size);
+    if(res==-1) {
+        printf("Error writing  dest_fs file %s\n",strerror(errno));
+        return;
+    }   
+}
 
 //marco
 int fat32_mkDir(DirectoryHandle* d, char* dirname){

@@ -11,7 +11,7 @@
 #include "linenoise.h"
 
 #define NUMBLOCKS 100
-#define NUMCMD 11
+#define NUMCMD 13
 #define LENCMD 128
 #define LENPATH 128
 #define LINE 1024
@@ -21,38 +21,40 @@ char* cmd[NUMCMD]= {
     "createfile",
     "ls","open","close",
     "write","read","seek",
-    "cd","mkdir","rm","exit"
+    "cd","mkdir","rm",
+    "cp_myfs_fs","cp_fs_myfs","exit"
 };
 
 char** ris=NULL;
 int ris_length=10;
+ListHead* head;
 
 void completion(const char *buf, linenoiseCompletions *lc) {
-    int c,r;
-    c=!strncmp(buf,"cd",2);
-    r=!strncmp(buf,"rm",2);
-    if(strlen(buf)>0 && (c||r)){
-        int len=strlen(buf);
+    int len=strlen(buf);
+    if(len>0){
         char* str=(char*)malloc(len+1);
         memcpy(str,buf,len);
         str[len]='\0';
-        strtok(str," ");
+        char* cmd=strtok(str," ");
         char* file=strtok(NULL," ");
+        int len_cmd=strlen(cmd);
        // printf("sono in ");
         //fflush(stdout);
-    
     //    fflush(stdout);
         if(!file) {//printf("Esco...\n");fflush(stdout);
             return;}
+        int len_file=strlen(file);
         //printf("file:%s\n",file);
         for(int i=0;i<ris_length;i++) {
-            if(ris[i] && !strncmp(file,ris[i],len-3)){
+            if(ris[i] && !strncmp(file,ris[i],len_file)){
                 //printf("%d",i);
                //printf("sto in if e strlen vale:%ld compare between %s and %s",strlen(ris[i]),ris[i],file);
                 //fflush(stdout);
-                int len=strlen(ris[i])+4;
+                int len=strlen(ris[i])+len_cmd+1;
                 char* to_add=(char*)calloc(len,sizeof(char));
-                c? strcpy(to_add,"cd "): strcpy(to_add,"rm ");
+                //c? strcpy(to_add,"cd "): strcpy(to_add,"rm ");
+                strncpy(to_add,cmd,len_cmd);
+                strcat(to_add," ");
                 strcat(to_add,ris[i]);
                 //to_add[len-1]='\0';
                 //printf("sto per invocare linenoise");
@@ -71,7 +73,7 @@ void completion(const char *buf, linenoiseCompletions *lc) {
     }
 }
 
-void ris_add(char* name) {
+void ris_add(const char* name) {
     if(name) {
         //printf("I will add: %s strlen:%ld\n",name,strlen(name));
         char** p=ris;
@@ -109,6 +111,7 @@ void ris_rm(char* name) {
         i++;
     }
 }
+
 int main(int argc, char** argv) {
     if(argc<2) {
         printf("Inserire il nome del disco\n");
@@ -157,7 +160,7 @@ int main(int argc, char** argv) {
     strcpy(path,root->dcb->fcb.name);
 
 
-    ListHead* head=(ListHead*)malloc(sizeof(ListHead));
+    head=(ListHead*)malloc(sizeof(ListHead));
     List_init(head);
     FileHandle* fh;
 
@@ -184,9 +187,10 @@ int main(int argc, char** argv) {
             user_cmd[strlen (user_cmd) - 1] = '\0';
         char* CMD;
         char* ARG;
-
+        char* ARG_2;
         CMD=strtok(user_cmd," ");
         ARG=strtok(NULL," ");
+        ARG_2=strtok(NULL," ");
         //printf("CMD: %s\n",CMD);
    
         if(CMD){
@@ -202,7 +206,7 @@ int main(int argc, char** argv) {
                     int mask;
                     for(int i=0;i<root->dcb->num_entries;i++){
                         mask=1;
-                        (bitmap&(mask<<i))? printf("\x1b[31m%s\33[0m\n",names[i]) : printf("%s\n",names[i]);
+                        (names[i][strlen(names[i])+1]=='1')? printf("\x1b[31m%s\33[0m\n",names[i]) : printf("%s\n",names[i]);
                     }
                     filename_dealloc(names);
                 }
@@ -290,9 +294,12 @@ int main(int argc, char** argv) {
                     continue;
                 }
                 ListItem* item=List_find(head,ARG);
-                List_detach(head,item);
-                //List_print(head);
-                fat32_close((FileHandle*)item);
+                if(item) {
+                    List_detach(head,item);
+                    //List_print(head);
+                    fat32_close((FileHandle*)item);
+                }
+                else printf("File non aperto o non creato\n");
             }
 
             else if(!strcmp(CMD,"write")) {
@@ -331,7 +338,7 @@ int main(int argc, char** argv) {
                 fflush(stdin);
                 fgets(p,LINE,stdin);
                 int pos=atoi(p);
-                ret=fat32_seek(fh,pos);
+                fat32_seek(fh,pos);
             } 
             else if(!strcmp(CMD,"read")) {
                 if(!ARG) {
@@ -355,6 +362,12 @@ int main(int argc, char** argv) {
                 printf("\n");
                 printf("bytes_read: %d\n",ret);
             }
+            else if(!strcmp(CMD,"cp_myfs_fs")) {
+                copy_myfs_tofs(ARG_2,ARG,root);
+            }
+            else if(!strcmp(CMD,"cp_fs_myfs")) {
+                copy_fs_tomyfs(ARG_2,ARG,root);
+            }
             else if(!strcmp(CMD,"rm")) { 
                 if(!ARG) {
                     printf("usage: rm <nomefile>\n");
@@ -374,7 +387,7 @@ int main(int argc, char** argv) {
             
         }
         linenoiseFree(user_cmd);
-        //List_print(head);     
+        List_print(head);     
     }
 
 

@@ -66,6 +66,7 @@ typedef struct {
   FirstDirectoryBlock* directory;
 } DirectoryHandle;
 
+extern  ListHead* head;
 
 DirectoryHandle* fat32_init(fat32* fs, DiskDriver* disk);
 
@@ -83,7 +84,9 @@ void filename_dealloc(char** names);
 int fat32_listDir(char** names, DirectoryHandle* d);
 
 
+void copy_fs_tomyfs(char* dest,char* src,DirectoryHandle* d);
 
+void copy_myfs_tofs(char* dest,char* src,DirectoryHandle* d);
 
 FileHandle* fat32_openFile(DirectoryHandle* d, const char* filename);
 
@@ -110,6 +113,5 @@ int fat32_mkDir(DirectoryHandle* d, char* dirname);
 
 int fat32_remove(DirectoryHandle* d, char* filename);
 
-
-  
+void ris_add(const char* name);
 
